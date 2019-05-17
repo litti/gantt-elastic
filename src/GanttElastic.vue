@@ -9,7 +9,7 @@
 <template>
   <div class="gantt-elastic" style="width:100%">
     <slot name="header"></slot>
-    <main-view></main-view>
+    <main-view ref="mainView"></main-view>
     <slot name="footer"></slot>
   </div>
 </template>
@@ -511,7 +511,6 @@ const GanttElastic = {
     getScrollBarHeight() {
       this.log('getScrollBarHeight', 0, ['logFunctions']);
       const outer = document.createElement('div');
-      outer.classList.add("FINDME");
       outer.style.visibility = 'hidden';
       outer.style.height = '100px';
       outer.style.msOverflowStyle = 'scrollbar';
@@ -986,9 +985,12 @@ const GanttElastic = {
      * @param {event} ev
      */
     onScrollChart(ev) {
+      this.log('onScrollChart', 0, ['logFunctions']);
+      this.log('onScrollChart', ev, 0, ['onScrollChart']);
       const horizontal = this.state.refs.chartScrollContainerHorizontal;
       const vertical = this.state.refs.chartScrollContainerVertical;
-      this._onScrollChart(horizontal.scrollLeft, vertical.scrollTop);
+      let left = horizontal.scrollLeft;
+      this._onScrollChart(left, vertical.scrollTop);
     },
 
     /**
@@ -998,6 +1000,7 @@ const GanttElastic = {
      * @param {number} top
      */
     _onScrollChart(left, top) {
+      this.log('_onScrollChart', 0, ['logFunctions']);
       const chartContainerWidth = this.state.refs.chartContainer.clientWidth;
       this.state.options.scroll.chart.left = left;
       this.state.options.scroll.chart.right = left + chartContainerWidth;
@@ -1009,7 +1012,7 @@ const GanttElastic = {
       this.state.options.scroll.chart.dateTime.right = dayjs(
         this.pixelOffsetXToTime(left + this.state.refs.chart.clientWidth)
       ).valueOf();
-      this.scrollTo(left, top);
+      this.scrollTo(left, top, '_onScrollChart');
     },
 
     /**
@@ -1018,13 +1021,15 @@ const GanttElastic = {
      * @param {int} time
      */
     scrollToTime(time) {
+      this.log('scrollToTime', 0, ['logFunctions']);
       let pos = this.timeToPixelOffsetX(time);
       const chartContainerWidth = this.state.refs.chartContainer.clientWidth;
       pos = pos - chartContainerWidth / 2;
       if (pos > this.state.options.width) {
         pos = this.state.options.width - chartContainerWidth;
       }
-      this.scrollTo(pos);
+      this.scrollTo(Math.ceil(pos), null, 'scrollToTime');
+      this.log('done scrollToTime', 0, ['logFunctions']);
     },
 
     /**
@@ -1032,15 +1037,20 @@ const GanttElastic = {
      *
      * @param {number|null} left
      * @param {number|null} top
+     * @param {string} reason
      */
-    scrollTo(left = null, top = null) {
-      if (left !== null) {
+    scrollTo(left = null, top = null, reason = '') {
+      this.log('scrollTo', 0, ['logFunctions']);
+      this.log('scrollTo, ' + (reason === '' ? '?' : reason), {left: left, top: top}, 0, ['scrollTo']);
+      this.log('isPos', {left: this.state.options.scroll.left, top: this.state.options.scroll.top}, 0, ['scrollTo']);
+      if (left !== null && this.state.options.scroll.left !== left) {
         this.state.refs.chartCalendarContainer.scrollLeft = left;
         this.state.refs.chartGraphContainer.scrollLeft = left;
-        this.state.refs.chartScrollContainerHorizontal.scrollLeft = left;
+        this.$refs.mainView.setScrollLeft(left);
         this.state.options.scroll.left = left;
+        this.log('done scrollTo - left', 0, ['logFunctions']);
       }
-      if (top !== null) {
+      if (top !== null && this.state.options.scroll.top !== top) {
         this.state.refs.chartScrollContainerVertical.scrollTop = top;
         this.state.refs.chartGraph.scrollTop = top;
         this.state.refs.taskListItems.scrollTop = top;
@@ -1072,7 +1082,7 @@ const GanttElastic = {
         } else if (top > scrollHeight) {
           top = scrollHeight;
         }
-        this.scrollTo(null, top);
+        this.scrollTo(null, top, 'onWheelChart');
       } else if ((ev.shiftKey || ev.ctrlKey) && ev.deltaX === 0) {
         let left = this.state.options.scroll.left + ev.deltaY;
         const chartClientWidth = this.state.refs.chartScrollContainerHorizontal.clientWidth;
@@ -1082,7 +1092,7 @@ const GanttElastic = {
         } else if (left > scrollWidth) {
           left = scrollWidth;
         }
-        this.scrollTo(left);
+        this.scrollTo(left, null, 'onWheelChart 2');
       } else {
         let left = this.state.options.scroll.left + ev.deltaX;
         const chartClientWidth = this.state.refs.chartScrollContainerHorizontal.clientWidth;
@@ -1092,7 +1102,7 @@ const GanttElastic = {
         } else if (left > scrollWidth) {
           left = scrollWidth;
         }
-        this.scrollTo(left);
+        this.scrollTo(left, null, 'onWheelChart 3');
       }
     },
 
@@ -1463,7 +1473,7 @@ const GanttElastic = {
         message = '';
       }
 
-      let modules = ['logFunctions', 'getScrollBarHeight'];
+      let modules = ['logFunctions'];
       let myLogLevel = 0;
 
       if (typeof logOnLevel !== 'undefined' && logOnLevel >= myLogLevel && (modules.length === 0 || !module || module.some(r => modules.indexOf(r) >= 0))) {
