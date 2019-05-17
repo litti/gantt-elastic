@@ -1474,7 +1474,7 @@ const GanttElastic = {
       }
 
       let modules = ['logFunctions'];
-      let myLogLevel = 0;
+      let myLogLevel = 4;
 
       if (typeof logOnLevel !== 'undefined' && logOnLevel >= myLogLevel && (modules.length === 0 || !module || module.some(r => modules.indexOf(r) >= 0))) {
         if (typeof elem !== 'undefined')
@@ -1486,36 +1486,9 @@ const GanttElastic = {
 
     isNumeric(n) {
       return !isNaN(parseFloat(n)) && isFinite(n);
-    }
-  },
-
-  computed: {
-    /**
-     * Get visible tasks
-     * Very important method which will bring us only those tasks that are visible inside gantt chart
-     * For example when task is collapsed - children of this task are not visible - we should not render them
-     */
-    visibleTasks() {
-      this.log('visibleTasks', 0, ['logFunctions']);
-      const visibleTasks = this.state.tasks.filter(task => this.isTaskVisible(task));
-      let len = visibleTasks.length;
-      for (let index = 0; index < len; index++) {
-        let task = visibleTasks[index];
-        task.width =
-          task.duration / this.state.options.times.timePerPixel - this.style['grid-line-vertical']['stroke-width'];
-        if (task.width < 0) {
-          task.width = 0;
-        }
-        task.height = this.state.options.row.height;
-        task.x = this.timeToPixelOffsetX(task.startTime);
-        task.y =
-          (this.state.options.row.height + this.state.options.chart.grid.horizontal.gap * 2) * index +
-          this.state.options.chart.grid.horizontal.gap;
-      }
-      return visibleTasks;
     },
 
-    visibleResources() {
+    getVisibleResources() {
       this.log('visibleResources', 0, ['logFunctions']);
       const visibleResources = this.state.resources.filter(resource => this.isResourceVisible(resource));
       const maxRows = visibleResources.slice(0, this.state.options.maxRows);
@@ -1529,6 +1502,39 @@ const GanttElastic = {
       this.state.options.allVisibleTasksHeight = this.getTasksHeight(visibleResources);
       this.state.options.outerHeight = this.getHeight(maxRows, true) - heightCompensation;
       return visibleResources;
+    }
+  },
+
+  computed: {
+    /**
+     * Get visible tasks
+     * Very important method which will bring us only those tasks that are visible inside gantt chart
+     * For example when task is collapsed - children of this task are not visible - we should not render them
+     */
+    visibleTasks() {
+      this.log('visibleTasks', 0, ['logFunctions']);
+      const visibleTasks = this.state.tasks.filter(task => this.isTaskVisible(task));
+      let len = visibleTasks.length;
+      let visibleResources = this.getVisibleResources();
+      for (let index = 0; index < len; index++) {
+        let task = visibleTasks[index];
+        task.width =
+          task.duration / this.state.options.times.timePerPixel - this.style['grid-line-vertical']['stroke-width'];
+        if (task.width < 0) {
+          task.width = 0;
+        }
+        task.height = this.state.options.row.height;
+        task.x = this.timeToPixelOffsetX(task.startTime);
+        task.y =
+          (this.state.options.row.height + this.state.options.chart.grid.horizontal.gap * 2) * visibleResources[task.resourceId].row +
+          this.state.options.chart.grid.horizontal.gap;
+      }
+      visibleResources = null;
+      return visibleTasks;
+    },
+
+    visibleResources() {
+      return this.getVisibleResources();
     },
 
     /**

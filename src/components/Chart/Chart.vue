@@ -55,11 +55,12 @@
             <g
               class="gantt-elastic__chart-row-wrapper"
               :style="{ ...root.style['chart-row-wrapper'] }"
-              v-for="task in root.visibleTasks"
-              :task="task"
-              :key="task.id"
+              v-for="resource in root.visibleResources"
+              :key="resource.id"
             >
-              <component :task="task" :is="task.type"></component>
+              <template v-for="task in getResourceTasks(resource.id)">
+                <component :task="task" :is="task.type"></component>
+              </template>
             </g>
           </svg>
         </div>
@@ -102,6 +103,11 @@ export default {
     this.root.state.refs.chartGraphContainer = this.$refs.chartGraphContainer;
     this.root.state.refs.chartGraph = this.$refs.chartGraph;
     this.root.state.refs.chartGraphSvg = this.$refs.chartGraphSvg;
+  },
+  methods: {
+    getResourceTasks(resourceId) {
+      return this.root.visibleTasks.filter(task => task.resourceId === resourceId);
+    }
   },
 
   computed: {

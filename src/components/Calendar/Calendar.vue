@@ -71,7 +71,6 @@ export default {
       const stroke = 1;
       const additionalSpace = stroke + 2;
       let fullWidth = this.root.state.options.width;
-      console.log('fullWidth: ' + fullWidth);
       let formatNames = Object.keys(this.root.state.options.calendar.day.format);
       for (let days = this.root.state.options.times.steps.length; days > 1; days = Math.ceil(days / 2)) {
         for (let formatName of formatNames) {
@@ -189,13 +188,11 @@ export default {
      * @returns {array}
      */
     generateDays() {
-      console.log('generateDays');
       let days = [];
       if (!this.root.state.options.calendar.day.display) {
         return days;
       }
       const daysCount = this.howManyDaysFit();
-      console.log(daysCount);
       if (daysCount.count === 0) {
         return days;
       }
