@@ -29,6 +29,7 @@ function initVue() {
   }
 }
 initVue();
+
 /**
  * Helper function to fill out empty options in user settings
  *
@@ -447,6 +448,8 @@ export function notEqualDeep(left, right, cache = [], path = '') {
 
 const styleCache = {};
 
+const loglevels = {0: 'silly', 1: 'debug', 2: 'info', 3: 'warn', 4: 'error'};
+
 /**
  * GanttElastic
  * Main vue component
@@ -506,7 +509,9 @@ const GanttElastic = {
      * @returns {number}
      */
     getScrollBarHeight() {
+      this.log('getScrollBarHeight', 0, ['logFunctions']);
       const outer = document.createElement('div');
+      outer.classList.add("FINDME");
       outer.style.visibility = 'hidden';
       outer.style.height = '100px';
       outer.style.msOverflowStyle = 'scrollbar';
@@ -520,6 +525,7 @@ const GanttElastic = {
       outer.parentNode.removeChild(outer);
       const height = noScroll - withScroll;
       this.style['chart-scroll-container--vertical']['margin-left'] = `-${height}px`;
+      this.log('scollBarHeight', height, 0, ['getScrollBarHeight']);
       return (this.state.options.scrollBarHeight = height);
     },
 
@@ -528,7 +534,7 @@ const GanttElastic = {
      */
     fillTasks(tasks) {
       for (let task of tasks) {
-        this.log(task, 1, ['fillTasks']);
+        this.log(task, 0, ['fillTasks']);
         if (typeof task.x === 'undefined') {
           task.x = 0;
         }
@@ -569,13 +575,13 @@ const GanttElastic = {
         if (typeof task.parent === 'undefined') {
           task.parent = null;
         }
-        this.log('startTime: ' + task.startTime, 1, ['fillTasks']);
-        this.log('startTime is nan: ' + isNaN(task.startTime), 1, ['fillTasks']);
-        if (typeof task.startTime === 'undefined' || isNaN(task.startTime) ) {
-          this.log('start: ' + task.start, 1, ['fillTasks']);
+        this.log('startTime: ' + task.startTime, 0, ['fillTasks']);
+        this.log('startTime is nan: ' + isNaN(task.startTime), 0, ['fillTasks']);
+        if (typeof task.startTime === 'undefined' || isNaN(task.startTime)) {
+          this.log('start: ' + task.start, 0, ['fillTasks']);
           task.startTime = dayjs(task.start).valueOf();
         }
-        this.log('startTime: ' + task.startTime, 1, ['fillTasks']);
+        this.log('startTime: ' + task.startTime, 0, ['fillTasks']);
         if (typeof task.endTime === 'undefined' && task.hasOwnProperty('end')) {
           task.endTime = dayjs(task.end).valueOf();
         } else if (typeof task.endTime === 'undefined' && task.hasOwnProperty('duration')) {
@@ -647,7 +653,6 @@ const GanttElastic = {
       this.state.resources = this.resources;
       this.state.tasks = this.state.taskTree.allChildren.map(childId => this.getTask(childId));
       this.calculateTaskListColumnsDimensions();
-      this.getScrollBarHeight();
       this.state.options.scrollBarHeight = this.getScrollBarHeight();
       this.state.options.outerHeight = this.state.options.height + this.state.options.scrollBarHeight;
       this.globalOnResize();
@@ -1056,8 +1061,8 @@ const GanttElastic = {
      * Mouse wheel event handler
      */
     onWheelChart(ev) {
-      this.log('onWheelChart', 1, ['logFunctions']);
-      this.log(ev, 1, ['onWheelChart']);
+      this.log('onWheelChart', 0, ['logFunctions']);
+      this.log(ev, 0, ['onWheelChart']);
       if (!ev.shiftKey && !ev.ctrlKey && ev.deltaX === 0) {
         let top = this.state.options.scroll.top + ev.deltaY;
         const chartClientHeight = this.state.options.rowsHeight;
@@ -1162,12 +1167,12 @@ const GanttElastic = {
       let steps = max / min;
       let percent = this.state.options.times.timeZoom / 100;
       this.state.options.times.timePerPixel = this.state.options.times.timeScale * steps * percent + Math.pow(2, this.state.options.times.timeZoom);
-      this.log('timePerPixel: ' + this.state.options.times.timePerPixel, 1, ['recalculateTimes']);
+      this.log('timePerPixel: ' + this.state.options.times.timePerPixel, 0, ['recalculateTimes']);
       this.state.options.times.totalViewDurationMs = dayjs(this.state.options.times.lastTime).diff(this.state.options.times.firstTime, 'milliseconds');
-      this.log('firstTime: ' + this.state.options.times.firstTime, 1, ['recalculateTimes']);
-      this.log('totalViewDurationMs: ' + this.state.options.times.totalViewDurationMs, 1, ['recalculateTimes']);
+      this.log('firstTime: ' + this.state.options.times.firstTime, 0, ['recalculateTimes']);
+      this.log('totalViewDurationMs: ' + this.state.options.times.totalViewDurationMs, 0, ['recalculateTimes']);
       this.state.options.times.totalViewDurationPx = this.state.options.times.totalViewDurationMs / this.state.options.times.timePerPixel;
-      this.log('totalViewDurationPx: ' + this.state.options.times.totalViewDurationPx, 1, ['recalculateTimes']);
+      this.log('totalViewDurationPx: ' + this.state.options.times.totalViewDurationPx, 0, ['recalculateTimes']);
       this.state.options.width = this.state.options.times.totalViewDurationPx + this.style['grid-line-vertical']['stroke-width'];
     },
 
@@ -1250,7 +1255,7 @@ const GanttElastic = {
      * Compute width of calendar hours column widths basing on text widths
      */
     computeHourWidths() {
-      const style = { ...this.style['calendar-row-text'], ...this.style['calendar-row-text--hour'] };
+      const style = {...this.style['calendar-row-text'], ...this.style['calendar-row-text--hour']};
       this.state.ctx.font = style['font-size'] + ' ' + style['font-family'];
       let currentDate = dayjs('2018-01-01T00:00:00'); // any date will be good for hours
       let maxWidths = this.state.options.calendar.hour.maxWidths;
@@ -1281,7 +1286,7 @@ const GanttElastic = {
      * Compute calendar days column widths basing on text widths
      */
     computeDayWidths() {
-      const style = { ...this.style['calendar-row-text'], ...this.style['calendar-row-text--day'] };
+      const style = {...this.style['calendar-row-text'], ...this.style['calendar-row-text--day']};
       this.state.ctx.font = style['font-size'] + ' ' + style['font-family'];
       let currentDate = dayjs(this.state.options.times.steps[0].time);
       let maxWidths = this.state.options.calendar.day.maxWidths;
@@ -1339,7 +1344,7 @@ const GanttElastic = {
      * Compute month calendar columns widths basing on text widths
      */
     computeMonthWidths() {
-      const style = { ...this.style['calendar-row-text'], ...this.style['calendar-row-text--month'] };
+      const style = {...this.style['calendar-row-text'], ...this.style['calendar-row-text--month']};
       this.state.ctx.font = style['font-size'] + ' ' + style['font-family'];
       let maxWidths = this.state.options.calendar.month.maxWidths;
       this.state.options.calendar.month.widths = [];
@@ -1371,13 +1376,13 @@ const GanttElastic = {
      * Prepare time and date variables for gantt
      */
     prepareDates() {
-      this.log('prepareDates', 1 , ['logFunctions']);
+      this.log('prepareDates', 0, ['logFunctions']);
       let firstTaskTime = Number.MAX_SAFE_INTEGER;
       let lastTaskTime = 0;
       for (let index = 0, len = this.state.tasks.length; index < len; index++) {
         let task = this.state.tasks[index];
-        this.log(task, 1, ['prepareDates']);
-        this.log('lastTaskTime: ' + lastTaskTime, 1, ['prepareDates']);
+        this.log(task, 0, ['prepareDates']);
+        this.log('lastTaskTime: ' + lastTaskTime, 0, ['prepareDates']);
         if (task.startTime < firstTaskTime) {
           firstTaskTime = task.startTime;
         }
@@ -1412,9 +1417,9 @@ const GanttElastic = {
       this.computeCalendarWidths();
       this.state.options.taskList.width = this.state.options.taskList.columns.reduce(
         (prev, current) => {
-          return { width: prev.width + current.width };
+          return {width: prev.width + current.width};
         },
-        { width: 0 }
+        {width: 0}
       ).width;
     },
 
@@ -1445,12 +1450,32 @@ const GanttElastic = {
       this.syncScrollTop();
     },
 
-    log(elem, logOnLevel, module){
-      let modules = ['logFunctions', 'onWheelChart'];
-      let myLogLevel = 0;
-      if (logOnLevel && logOnLevel > myLogLevel && (modules.length === 0 || !module || modules.some(r=> modules.indexOf(r) >= 0))) {
-        console.log(elem);
+    log(message, elem, logOnLevel, module) {
+
+      if (this.isNumeric(elem) && typeof module === 'undefined') {
+        module = logOnLevel;
+        logOnLevel = elem;
+        elem = undefined;
       }
+
+      if (typeof message === 'object') {
+        elem = message;
+        message = '';
+      }
+
+      let modules = ['logFunctions', 'getScrollBarHeight'];
+      let myLogLevel = 0;
+
+      if (typeof logOnLevel !== 'undefined' && logOnLevel >= myLogLevel && (modules.length === 0 || !module || module.some(r => modules.indexOf(r) >= 0))) {
+        if (typeof elem !== 'undefined')
+          console.log('[' + loglevels[logOnLevel] + ']: ' + message, elem);
+        else
+          console.log('[' + loglevels[logOnLevel] + ']: ' + message);
+      }
+    },
+
+    isNumeric(n) {
+      return !isNaN(parseFloat(n)) && isFinite(n);
     }
   },
 
@@ -1461,7 +1486,7 @@ const GanttElastic = {
      * For example when task is collapsed - children of this task are not visible - we should not render them
      */
     visibleTasks() {
-      this.log('visibleTasks', 1, ['logFunctions']);
+      this.log('visibleTasks', 0, ['logFunctions']);
       const visibleTasks = this.state.tasks.filter(task => this.isTaskVisible(task));
       let len = visibleTasks.length;
       for (let index = 0; index < len; index++) {
@@ -1481,7 +1506,7 @@ const GanttElastic = {
     },
 
     visibleResources() {
-      this.log('visibleResources', 1, ['logFunctions']);
+      this.log('visibleResources', 0, ['logFunctions']);
       const visibleResources = this.state.resources.filter(resource => this.isResourceVisible(resource));
       const maxRows = visibleResources.slice(0, this.state.options.maxRows);
       this.state.options.rowsHeight = this.getTasksHeight(maxRows);
