@@ -528,7 +528,7 @@ const GanttElastic = {
      */
     fillTasks(tasks) {
       for (let task of tasks) {
-        this.log(task, 0);
+        this.log(task, 1, ['fillTasks']);
         if (typeof task.x === 'undefined') {
           task.x = 0;
         }
@@ -569,13 +569,13 @@ const GanttElastic = {
         if (typeof task.parent === 'undefined') {
           task.parent = null;
         }
-        this.log('startTime: ' + task.startTime);
-        this.log('startTime is nan: ' + isNaN(task.startTime));
+        this.log('startTime: ' + task.startTime, 1, ['fillTasks']);
+        this.log('startTime is nan: ' + isNaN(task.startTime), 1, ['fillTasks']);
         if (typeof task.startTime === 'undefined' || isNaN(task.startTime) ) {
-          this.log('start: ' + task.start);
+          this.log('start: ' + task.start, 1, ['fillTasks']);
           task.startTime = dayjs(task.start).valueOf();
         }
-        this.log('startTime: ' + task.startTime);
+        this.log('startTime: ' + task.startTime, 1, ['fillTasks']);
         if (typeof task.endTime === 'undefined' && task.hasOwnProperty('end')) {
           task.endTime = dayjs(task.end).valueOf();
         } else if (typeof task.endTime === 'undefined' && task.hasOwnProperty('duration')) {
@@ -925,6 +925,15 @@ const GanttElastic = {
     },
 
     /**
+     * Get specified tasks height
+     *
+     * @returns {number}
+     */
+    getResourcesHeight(visibleResources) {
+      return visibleResources.length * this.getTaskHeight();
+    },
+
+    /**
      * Convert time (in milliseconds) to pixel offset inside chart
      *
      * @param {int} ms
@@ -1047,7 +1056,9 @@ const GanttElastic = {
      * Mouse wheel event handler
      */
     onWheelChart(ev) {
-      if (!ev.shiftKey) {
+      this.log('onWheelChart', 1, ['logFunctions']);
+      this.log(ev, 1, ['onWheelChart']);
+      if (!ev.shiftKey && !ev.ctrlKey && ev.deltaX === 0) {
         let top = this.state.options.scroll.top + ev.deltaY;
         const chartClientHeight = this.state.options.rowsHeight;
         const scrollHeight = this.state.refs.chartGraph.scrollHeight - chartClientHeight;
@@ -1057,8 +1068,18 @@ const GanttElastic = {
           top = scrollHeight;
         }
         this.scrollTo(null, top);
-      } else {
+      } else if ((ev.shiftKey || ev.ctrlKey) && ev.deltaX === 0) {
         let left = this.state.options.scroll.left + ev.deltaY;
+        const chartClientWidth = this.state.refs.chartScrollContainerHorizontal.clientWidth;
+        const scrollWidth = this.state.refs.chartScrollContainerHorizontal.scrollWidth - chartClientWidth;
+        if (left < 0) {
+          left = 0;
+        } else if (left > scrollWidth) {
+          left = scrollWidth;
+        }
+        this.scrollTo(left);
+      } else {
+        let left = this.state.options.scroll.left + ev.deltaX;
         const chartClientWidth = this.state.refs.chartScrollContainerHorizontal.clientWidth;
         const scrollWidth = this.state.refs.chartScrollContainerHorizontal.scrollWidth - chartClientWidth;
         if (left < 0) {
@@ -1141,12 +1162,12 @@ const GanttElastic = {
       let steps = max / min;
       let percent = this.state.options.times.timeZoom / 100;
       this.state.options.times.timePerPixel = this.state.options.times.timeScale * steps * percent + Math.pow(2, this.state.options.times.timeZoom);
-      this.log('timePerPixel: ' + this.state.options.times.timePerPixel, 0);
+      this.log('timePerPixel: ' + this.state.options.times.timePerPixel, 1, ['recalculateTimes']);
       this.state.options.times.totalViewDurationMs = dayjs(this.state.options.times.lastTime).diff(this.state.options.times.firstTime, 'milliseconds');
-      this.log('firstTime: ' + this.state.options.times.firstTime, 0);
-      this.log('totalViewDurationMs: ' + this.state.options.times.totalViewDurationMs, 0);
+      this.log('firstTime: ' + this.state.options.times.firstTime, 1, ['recalculateTimes']);
+      this.log('totalViewDurationMs: ' + this.state.options.times.totalViewDurationMs, 1, ['recalculateTimes']);
       this.state.options.times.totalViewDurationPx = this.state.options.times.totalViewDurationMs / this.state.options.times.timePerPixel;
-      this.log('totalViewDurationPx: ' + this.state.options.times.totalViewDurationPx, 0);
+      this.log('totalViewDurationPx: ' + this.state.options.times.totalViewDurationPx, 1, ['recalculateTimes']);
       this.state.options.width = this.state.options.times.totalViewDurationPx + this.style['grid-line-vertical']['stroke-width'];
     },
 
@@ -1350,13 +1371,13 @@ const GanttElastic = {
      * Prepare time and date variables for gantt
      */
     prepareDates() {
-      this.log('prepareDates', 0);
+      this.log('prepareDates', 1 , ['logFunctions']);
       let firstTaskTime = Number.MAX_SAFE_INTEGER;
       let lastTaskTime = 0;
       for (let index = 0, len = this.state.tasks.length; index < len; index++) {
         let task = this.state.tasks[index];
-        this.log(task, 0);
-        this.log('lastTaskTime: ' + lastTaskTime, 0);
+        this.log(task, 1, ['prepareDates']);
+        this.log('lastTaskTime: ' + lastTaskTime, 1, ['prepareDates']);
         if (task.startTime < firstTaskTime) {
           firstTaskTime = task.startTime;
         }
@@ -1405,13 +1426,8 @@ const GanttElastic = {
         return;
       }
       this.state.options.clientWidth = this.$el.clientWidth;
-      if (
-        this.state.options.taskList.widthFromPercentage >
-        (this.state.options.clientWidth / 100) * this.state.options.taskList.widthThreshold
-      ) {
-        const diff =
-          this.state.options.taskList.widthFromPercentage -
-          (this.state.options.clientWidth / 100) * this.state.options.taskList.widthThreshold;
+      if (this.state.options.taskList.widthFromPercentage > (this.state.options.clientWidth / 100) * this.state.options.taskList.widthThreshold) {
+        const diff = this.state.options.taskList.widthFromPercentage - (this.state.options.clientWidth / 100) * this.state.options.taskList.widthThreshold;
         let diffPercent = 100 - (diff / this.state.options.taskList.widthFromPercentage) * 100;
         if (diffPercent < 0) {
           diffPercent = 0;
@@ -1430,8 +1446,9 @@ const GanttElastic = {
     },
 
     log(elem, logOnLevel, module){
-      let modules =[];
-      if (logOnLevel && logOnLevel > 0 && (!module || modules.indexOf(module) > -1)) {
+      let modules = ['logFunctions', 'onWheelChart'];
+      let myLogLevel = 0;
+      if (logOnLevel && logOnLevel > myLogLevel && (modules.length === 0 || !module || modules.some(r=> modules.indexOf(r) >= 0))) {
         console.log(elem);
       }
     }
@@ -1444,17 +1461,8 @@ const GanttElastic = {
      * For example when task is collapsed - children of this task are not visible - we should not render them
      */
     visibleTasks() {
+      this.log('visibleTasks', 1, ['logFunctions']);
       const visibleTasks = this.state.tasks.filter(task => this.isTaskVisible(task));
-      const maxRows = visibleTasks.slice(0, this.state.options.maxRows);
-      this.state.options.rowsHeight = this.getTasksHeight(maxRows);
-      let heightCompensation = 0;
-      if (this.state.options.maxHeight && this.state.options.rowsHeight > this.state.options.maxHeight) {
-        heightCompensation = this.state.options.rowsHeight - this.state.options.maxHeight;
-        this.state.options.rowsHeight = this.state.options.maxHeight;
-      }
-      this.state.options.height = this.getHeight(maxRows) - heightCompensation;
-      this.state.options.allVisibleTasksHeight = this.getTasksHeight(visibleTasks);
-      this.state.options.outerHeight = this.getHeight(maxRows, true) - heightCompensation;
       let len = visibleTasks.length;
       for (let index = 0; index < len; index++) {
         let task = visibleTasks[index];
@@ -1473,6 +1481,7 @@ const GanttElastic = {
     },
 
     visibleResources() {
+      this.log('visibleResources', 1, ['logFunctions']);
       const visibleResources = this.state.resources.filter(resource => this.isResourceVisible(resource));
       const maxRows = visibleResources.slice(0, this.state.options.maxRows);
       this.state.options.rowsHeight = this.getTasksHeight(maxRows);
