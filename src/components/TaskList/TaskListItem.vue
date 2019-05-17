@@ -8,10 +8,10 @@
 -->
 <template>
   <div class="gantt-elastic__task-list-item" :style="{ ...root.style['task-list-item'] }">
-    <item-column v-for="column in columns" :key="column._id" :column="column" :task="task">
+    <item-column v-for="column in columns" :key="column._id" :column="column" :resource="resource">
       <task-list-expander
         v-if="column.expander"
-        :tasks="[task]"
+        :resources="[resource]"
         :options="root.state.options.taskList.expander"
         type="taskList"
       ></task-list-expander>
@@ -29,7 +29,7 @@ export default {
     ItemColumn
   },
   inject: ['root'],
-  props: ['task'],
+  props: ['resource'],
   data() {
     return {};
   },

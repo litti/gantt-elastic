@@ -55,7 +55,7 @@
 export default {
   name: 'ItemColumn',
   inject: ['root'],
-  props: ['column', 'task'],
+  props: ['column', 'resource'],
   data() {
     return {};
   },
@@ -68,9 +68,9 @@ export default {
      */
     emitEvent(eventName, event) {
       if (typeof this.column.events !== 'undefined' && typeof this.column.events[eventName] === 'function') {
-        this.column.events[eventName]({ event, data: this.task, column: this.column });
+        this.column.events[eventName]({ event, data: this.resource, column: this.column });
       }
-      this.root.$emit(`taskList-${this.task.type}-${eventName}`, { event, data: this.task, column: this.column });
+      this.root.$emit(`taskList-${this.resource.type}-${eventName}`, { event, data: this.resource, column: this.column });
     }
   },
   computed: {
@@ -93,9 +93,9 @@ export default {
      */
     value() {
       if (typeof this.column.value === 'function') {
-        return this.column.value(this.task);
+        return this.column.value(this.resource);
       }
-      return this.task[this.column.value];
+      return this.resource[this.column.value];
     },
 
     itemColumnStyle() {

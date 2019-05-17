@@ -44,6 +44,7 @@ function getOptions(userOptions) {
     slots: {
       header: {}
     },
+    /* don't create taskMapping object because we can otherwise omit mapping function which will speed up things!
     taskMapping: {
       id: 'id',
       start: 'start',
@@ -53,7 +54,7 @@ function getOptions(userOptions) {
       type: 'type',
       style: 'style',
       collapsed: 'collapsed'
-    },
+    },*/
     width: 0,
     height: 0,
     clientWidth: 0,
@@ -455,7 +456,7 @@ const GanttElastic = {
   components: {
     MainView
   },
-  props: ['tasks', 'options', 'dynamicStyle'],
+  props: ['resources', 'tasks', 'options', 'dynamicStyle'],
   provide() {
     const provider = {};
     const self = this;
@@ -468,6 +469,7 @@ const GanttElastic = {
   data() {
     return {
       state: {
+        resources: [],
         tasks: [],
         options: {
           scrollBarHeight: 0,
@@ -526,6 +528,7 @@ const GanttElastic = {
      */
     fillTasks(tasks) {
       for (let task of tasks) {
+        this.log(task, 0);
         if (typeof task.x === 'undefined') {
           task.x = 0;
         }
@@ -544,9 +547,10 @@ const GanttElastic = {
         if (typeof task.collapsed === 'undefined') {
           task.collapsed = false;
         }
-        if (typeof task.dependentOn === 'undefined') {
+        //don't fill dependentOn if not set to speed up code in DependencyLines.vue
+        /*if (typeof task.dependentOn === 'undefined') {
           task.dependentOn = [];
-        }
+        }*/
         if (typeof task.parentId === 'undefined') {
           task.parentId = null;
         }
@@ -565,9 +569,13 @@ const GanttElastic = {
         if (typeof task.parent === 'undefined') {
           task.parent = null;
         }
-        if (typeof task.startTime === 'undefined') {
+        this.log('startTime: ' + task.startTime);
+        this.log('startTime is nan: ' + isNaN(task.startTime));
+        if (typeof task.startTime === 'undefined' || isNaN(task.startTime) ) {
+          this.log('start: ' + task.start);
           task.startTime = dayjs(task.start).valueOf();
         }
+        this.log('startTime: ' + task.startTime);
         if (typeof task.endTime === 'undefined' && task.hasOwnProperty('end')) {
           task.endTime = dayjs(task.end).valueOf();
         } else if (typeof task.endTime === 'undefined' && task.hasOwnProperty('duration')) {
@@ -587,18 +595,20 @@ const GanttElastic = {
      * @param {Object} options
      */
     mapTasks(tasks, options) {
-      for (let [index, task] of tasks.entries()) {
-        tasks[index] = {
-          ...task,
-          id: task[options.taskMapping.id],
-          start: task[options.taskMapping.start],
-          label: task[options.taskMapping.label],
-          duration: task[options.taskMapping.duration],
-          progress: task[options.taskMapping.progress],
-          type: task[options.taskMapping.type],
-          style: task[options.taskMapping.style],
-          collapsed: task[options.taskMapping.collapsed]
-        };
+      if (typeof options.taskMapping !== 'undefined') {
+        for (let [index, task] of tasks.entries()) {
+          tasks[index] = {
+            ...task,
+            id: task[options.taskMapping.id],
+            start: task[options.taskMapping.start],
+            label: task[options.taskMapping.label],
+            duration: task[options.taskMapping.duration],
+            progress: task[options.taskMapping.progress],
+            type: task[options.taskMapping.type],
+            style: task[options.taskMapping.style],
+            collapsed: task[options.taskMapping.collapsed]
+          };
+        }
       }
       return tasks;
     },
@@ -634,6 +644,7 @@ const GanttElastic = {
       tasks = this.fillTasks(tasks);
       this.state.tasksById = this.resetTaskTree(tasks);
       this.state.taskTree = this.makeTaskTree(this.state.rootTask, tasks);
+      this.state.resources = this.resources;
       this.state.tasks = this.state.taskTree.allChildren.map(childId => this.getTask(childId));
       this.calculateTaskListColumnsDimensions();
       this.getScrollBarHeight();
@@ -784,6 +795,19 @@ const GanttElastic = {
     },
 
     /**
+     * Get resource by id
+     *
+     * @param {any} resourceId
+     * @returns {object|null} task
+     */
+    getResource(resourceId) {
+      if (typeof this.state.resourcesById[taskId] !== 'undefined') {
+        return this.state.resources.filter(resource => resource.id === resourceId);
+      }
+      return null;
+    },
+
+    /**
      * Get children tasks for specified taskId
      *
      * @param {any} taskId
@@ -805,6 +829,25 @@ const GanttElastic = {
       for (let i = 0, len = task.parents.length; i < len; i++) {
         if (this.getTask(task.parents[i]).collapsed) {
           return false;
+        }
+      }
+      return true;
+    },
+
+    /**
+     * Is resource visible
+     *
+     * @param {Number|String|Resource} resource
+     */
+    isResourceVisible(resource) {
+      if (typeof resource === 'number' || typeof resource === 'string') {
+        resource = this.getResource(resource);
+      }
+      if (resource.parents) {
+        for (let i = 0; i < resource.parents.length; i++) {
+          if (this.getResource(resource.parents[i]).collapsed) {
+            return false;
+          }
         }
       }
       return true;
@@ -1097,16 +1140,14 @@ const GanttElastic = {
       let min = this.state.options.times.timeScale;
       let steps = max / min;
       let percent = this.state.options.times.timeZoom / 100;
-      this.state.options.times.timePerPixel =
-        this.state.options.times.timeScale * steps * percent + Math.pow(2, this.state.options.times.timeZoom);
-      this.state.options.times.totalViewDurationMs = dayjs(this.state.options.times.lastTime).diff(
-        this.state.options.times.firstTime,
-        'milliseconds'
-      );
-      this.state.options.times.totalViewDurationPx =
-        this.state.options.times.totalViewDurationMs / this.state.options.times.timePerPixel;
-      this.state.options.width =
-        this.state.options.times.totalViewDurationPx + this.style['grid-line-vertical']['stroke-width'];
+      this.state.options.times.timePerPixel = this.state.options.times.timeScale * steps * percent + Math.pow(2, this.state.options.times.timeZoom);
+      this.log('timePerPixel: ' + this.state.options.times.timePerPixel, 0);
+      this.state.options.times.totalViewDurationMs = dayjs(this.state.options.times.lastTime).diff(this.state.options.times.firstTime, 'milliseconds');
+      this.log('firstTime: ' + this.state.options.times.firstTime, 0);
+      this.log('totalViewDurationMs: ' + this.state.options.times.totalViewDurationMs, 0);
+      this.state.options.times.totalViewDurationPx = this.state.options.times.totalViewDurationMs / this.state.options.times.timePerPixel;
+      this.log('totalViewDurationPx: ' + this.state.options.times.totalViewDurationPx, 0);
+      this.state.options.width = this.state.options.times.totalViewDurationPx + this.style['grid-line-vertical']['stroke-width'];
     },
 
     /**
@@ -1309,10 +1350,13 @@ const GanttElastic = {
      * Prepare time and date variables for gantt
      */
     prepareDates() {
+      this.log('prepareDates', 0);
       let firstTaskTime = Number.MAX_SAFE_INTEGER;
       let lastTaskTime = 0;
       for (let index = 0, len = this.state.tasks.length; index < len; index++) {
         let task = this.state.tasks[index];
+        this.log(task, 0);
+        this.log('lastTaskTime: ' + lastTaskTime, 0);
         if (task.startTime < firstTaskTime) {
           firstTaskTime = task.startTime;
         }
@@ -1383,6 +1427,13 @@ const GanttElastic = {
       this.calculateTaskListColumnsDimensions();
       this.$emit('calendar-recalculate');
       this.syncScrollTop();
+    },
+
+    log(elem, logOnLevel, module){
+      let modules =[];
+      if (logOnLevel && logOnLevel > 0 && (!module || modules.indexOf(module) > -1)) {
+        console.log(elem);
+      }
     }
   },
 
@@ -1419,6 +1470,21 @@ const GanttElastic = {
           this.state.options.chart.grid.horizontal.gap;
       }
       return visibleTasks;
+    },
+
+    visibleResources() {
+      const visibleResources = this.state.resources.filter(resource => this.isResourceVisible(resource));
+      const maxRows = visibleResources.slice(0, this.state.options.maxRows);
+      this.state.options.rowsHeight = this.getTasksHeight(maxRows);
+      let heightCompensation = 0;
+      if (this.state.options.maxHeight && this.state.options.rowsHeight > this.state.options.maxHeight) {
+        heightCompensation = this.state.options.rowsHeight - this.state.options.maxHeight;
+        this.state.options.rowsHeight = this.state.options.maxHeight;
+      }
+      this.state.options.height = this.getHeight(maxRows) - heightCompensation;
+      this.state.options.allVisibleTasksHeight = this.getTasksHeight(visibleResources);
+      this.state.options.outerHeight = this.getHeight(maxRows, true) - heightCompensation;
+      return visibleResources;
     },
 
     /**
@@ -1555,7 +1621,8 @@ const GanttElastic = {
    * Before destroy event - clean up
    */
   beforeDestroy() {
-    this.state.resizeObserver.unobserve(this.$el.parentNode);
+    if (typeof this.$el.parentNode !== 'undefined' && this.$el.parentNode)
+      this.state.resizeObserver.unobserve(this.$el.parentNode);
     this.state.unwatchTasks();
     this.state.unwatchOptions();
     this.state.unwatchStyle();
