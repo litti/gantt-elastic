@@ -52,7 +52,7 @@
 export default {
   name: 'Expander',
   inject: ['root'],
-  props: ['resources', 'options', 'type'],
+  props: ['taskListItems', 'options', 'type'],
   data() {
     const border = 0.5;
     return {
@@ -70,8 +70,8 @@ export default {
       }
       const margin = this.root.state.options.taskList.expander.margin;
       let padding = 0;
-      if (this.resources[0].parents)
-        padding = this.resources[0].parents.length * this.root.state.options.taskList.expander.padding;
+      if (this.taskListItems[0].parents)
+        padding = this.taskListItems[0].parents.length * this.root.state.options.taskList.expander.padding;
       return {
         'padding-left': padding + margin + 'px',
         margin: 'auto 0'
@@ -84,7 +84,7 @@ export default {
      */
     allChildren() {
       const children = [];
-      this.resources.forEach(resource => {
+      this.taskListItems.forEach(resource => {
         if (resource.allChildren) {
           resource.allChildren.forEach(childId => {
             children.push(childId);
@@ -99,16 +99,16 @@ export default {
      * @returns {boolean}
      */
     collapsed() {
-      if (this.resources.length === 0) {
+      if (this.taskListItems.length === 0) {
         return false;
       }
       let collapsed = 0;
-      for (let i = 0, len = this.resources.length; i < len; i++) {
-        if (this.resources[i].collapsed) {
+      for (let i = 0, len = this.taskListItems.length; i < len; i++) {
+        if (this.taskListItems[i].collapsed) {
           collapsed++;
         }
       }
-      return collapsed === this.resources.length;
+      return collapsed === this.taskListItems.length;
     }
   },
   methods: {
@@ -124,14 +124,14 @@ export default {
      * Toggle expander
      */
     toggle() {
-      if (this.resources.length === 0) {
+      if (this.taskListItems.length === 0) {
         return;
       }
       const collapsed = !this.collapsed;
-      this.resources.forEach(resource => {
-        resource.collapsed = collapsed;
-        for (let childId of resource.allChildren) {
-          const child = this.root.getResource(childId);
+      this.taskListItems.forEach(taskListItem => {
+        taskListItem.collapsed = collapsed;
+        for (let childId of taskListItem.allChildren) {
+          const child = this.root.getResource(childId); //todo: hier gucken wie das hinsichtlich der trennung resource / task aussieht
           child.collapsed = collapsed;
 
           //todo: alle tasks in der resource ausblenden/collapsen

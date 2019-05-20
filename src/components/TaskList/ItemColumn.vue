@@ -55,7 +55,7 @@
 export default {
   name: 'ItemColumn',
   inject: ['root'],
-  props: ['column', 'resource'],
+  props: ['column', 'taskListItem'],
   data() {
     return {};
   },
@@ -68,9 +68,9 @@ export default {
      */
     emitEvent(eventName, event) {
       if (typeof this.column.events !== 'undefined' && typeof this.column.events[eventName] === 'function') {
-        this.column.events[eventName]({ event, data: this.resource, column: this.column });
+        this.column.events[eventName]({ event, data: this.taskListItem, column: this.column });
       }
-      this.root.$emit(`taskList-${this.resource.type}-${eventName}`, { event, data: this.resource, column: this.column });
+      this.root.$emit(`taskList-${this.taskListItem.type}-${eventName}`, { event, data: this.taskListItem, column: this.column });
     }
   },
   computed: {
@@ -93,10 +93,11 @@ export default {
      */
     value() {
       if (typeof this.column.value === 'function') {
-        return this.column.value(this.resource);
+        return this.column.value(this.taskListItem);
       }
-      return this.resource[this.column.value];
+      return this.taskListItem[this.column.value];
     },
+
 
     itemColumnStyle() {
       return {
@@ -106,21 +107,18 @@ export default {
         height: this.column.height + 'px'
       };
     },
-
     wrapperStyle() {
       return {
         ...this.root.style['task-list-item-value-wrapper'],
         ...this.column.style['task-list-item-value-wrapper']
       };
     },
-
     containerStyle() {
       return {
         ...this.root.style['task-list-item-value-container'],
         ...this.column.style['task-list-item-value-container']
       };
     },
-
     valueStyle() {
       return { ...this.root.style['task-list-item-value'], ...this.column.style['task-list-item-value'] };
     }

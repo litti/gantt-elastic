@@ -45,7 +45,7 @@ function getOptions(userOptions) {
     slots: {
       header: {}
     },
-    /* don't create taskMapping object because we can otherwise omit mapping function which will speed up things!
+    /* don't create taskMapping object because we can omit mapping function if not present which will speed up things!
     taskMapping: {
       id: 'id',
       start: 'start',
@@ -533,7 +533,6 @@ const GanttElastic = {
      */
     fillTasks(tasks) {
       for (let task of tasks) {
-        this.log(task, 0, ['fillTasks']);
         if (typeof task.x === 'undefined') {
           task.x = 0;
         }
@@ -574,13 +573,9 @@ const GanttElastic = {
         if (typeof task.parent === 'undefined') {
           task.parent = null;
         }
-        this.log('startTime: ' + task.startTime, 0, ['fillTasks']);
-        this.log('startTime is nan: ' + isNaN(task.startTime), 0, ['fillTasks']);
         if (typeof task.startTime === 'undefined' || isNaN(task.startTime)) {
-          this.log('start: ' + task.start, 0, ['fillTasks']);
           task.startTime = dayjs(task.start).valueOf();
         }
-        this.log('startTime: ' + task.startTime, 0, ['fillTasks']);
         if (typeof task.endTime === 'undefined' && task.hasOwnProperty('end')) {
           task.endTime = dayjs(task.end).valueOf();
         } else if (typeof task.endTime === 'undefined' && task.hasOwnProperty('duration')) {
@@ -605,6 +600,7 @@ const GanttElastic = {
           tasks[index] = {
             ...task,
             id: task[options.taskMapping.id],
+            resourceId: task[options.taskMapping.resourceId],
             start: task[options.taskMapping.start],
             label: task[options.taskMapping.label],
             duration: task[options.taskMapping.duration],
@@ -1029,7 +1025,7 @@ const GanttElastic = {
         pos = this.state.options.width - chartContainerWidth;
       }
       this.scrollTo(Math.ceil(pos), null, 'scrollToTime');
-      this.log('done scrollToTime', 0, ['logFunctions']);
+      this.log('done scrollToTime', 0, ['scrollToTime']);
     },
 
     /**
@@ -1048,7 +1044,7 @@ const GanttElastic = {
         this.state.refs.chartGraphContainer.scrollLeft = left;
         this.$refs.mainView.setScrollLeft(left);
         this.state.options.scroll.left = left;
-        this.log('done scrollTo - left', 0, ['logFunctions']);
+        this.log('done scrollTo - left', 0, ['scrollTo']);
       }
       if (top !== null && this.state.options.scroll.top !== top) {
         this.state.refs.chartScrollContainerVertical.scrollTop = top;
@@ -1211,6 +1207,7 @@ const GanttElastic = {
      * Each step contain information about time offset and pixel offset of this time inside gantt chart
      */
     calculateSteps() {
+      this.log('calculateSteps', null, 0, 'logFunctions');
       const steps = [];
       const lastMs = dayjs(this.state.options.times.lastTime).valueOf();
       const currentDate = dayjs(this.state.options.times.firstTime);
@@ -1221,6 +1218,7 @@ const GanttElastic = {
           px: 0
         }
       });
+      this.log('times', this.state.options.times, 0, 'calculateSteps');
       for (
         let currentDate = dayjs(this.state.options.times.firstTime)
           .add(1, this.state.options.times.stepDuration)
@@ -1391,8 +1389,6 @@ const GanttElastic = {
       let lastTaskTime = 0;
       for (let index = 0, len = this.state.tasks.length; index < len; index++) {
         let task = this.state.tasks[index];
-        this.log(task, 0, ['prepareDates']);
-        this.log('lastTaskTime: ' + lastTaskTime, 0, ['prepareDates']);
         if (task.startTime < firstTaskTime) {
           firstTaskTime = task.startTime;
         }
@@ -1414,6 +1410,7 @@ const GanttElastic = {
         .add(this.state.options.scope.after, 'days')
         .endOf('day')
         .valueOf();
+      this.log('times in prepareDates:', this.state.options.times, 0, ['prepareDates']);
     },
 
     /**
@@ -1465,7 +1462,7 @@ const GanttElastic = {
       if (this.isNumeric(elem) && typeof module === 'undefined') {
         module = logOnLevel;
         logOnLevel = elem;
-        elem = undefined;
+        elem = null;
       }
 
       if (typeof message === 'object') {
@@ -1473,11 +1470,14 @@ const GanttElastic = {
         message = '';
       }
 
-      let modules = ['logFunctions'];
-      let myLogLevel = 4;
+      if (typeof module === 'string')
+        module = [module];
+
+      let modules = ['logFunctions', 'getVisibleResources'];
+      let myLogLevel = 0;
 
       if (typeof logOnLevel !== 'undefined' && logOnLevel >= myLogLevel && (modules.length === 0 || !module || module.some(r => modules.indexOf(r) >= 0))) {
-        if (typeof elem !== 'undefined')
+        if (elem !== null)
           console.log('[' + loglevels[logOnLevel] + ']: ' + message, elem);
         else
           console.log('[' + loglevels[logOnLevel] + ']: ' + message);
@@ -1489,19 +1489,38 @@ const GanttElastic = {
     },
 
     getVisibleResources() {
-      this.log('visibleResources', 0, ['logFunctions']);
-      const visibleResources = this.state.resources.filter(resource => this.isResourceVisible(resource));
-      const maxRows = visibleResources.slice(0, this.state.options.maxRows);
-      this.state.options.rowsHeight = this.getTasksHeight(maxRows);
-      let heightCompensation = 0;
-      if (this.state.options.maxHeight && this.state.options.rowsHeight > this.state.options.maxHeight) {
-        heightCompensation = this.state.options.rowsHeight - this.state.options.maxHeight;
-        this.state.options.rowsHeight = this.state.options.maxHeight;
+      this.log('getVisibleResources', null, 0, ['logFunctions']);
+      if (typeof this.state.resources === 'undefined') {
+        this.log('no resources found, use tasks', null, 0, ['getVisibleResources']);
+        const visibleTasks = this.state.tasks.filter(task => this.isTaskVisible(task));
+        const maxRows = visibleTasks.slice(0, this.state.options.maxRows);
+        this.state.options.rowsHeight = this.getTasksHeight(maxRows);
+        let heightCompensation = 0;
+        if (this.state.options.maxHeight && this.state.options.rowsHeight > this.state.options.maxHeight) {
+          heightCompensation = this.state.options.rowsHeight - this.state.options.maxHeight;
+          this.state.options.rowsHeight = this.state.options.maxHeight;
+        }
+        this.state.options.height = this.getHeight(maxRows) - heightCompensation;
+        this.state.options.allVisibleTasksHeight = this.getTasksHeight(visibleTasks);
+        this.state.options.outerHeight = this.getHeight(maxRows, true) - heightCompensation;
+
+        return [];
       }
-      this.state.options.height = this.getHeight(maxRows) - heightCompensation;
-      this.state.options.allVisibleTasksHeight = this.getTasksHeight(visibleResources);
-      this.state.options.outerHeight = this.getHeight(maxRows, true) - heightCompensation;
-      return visibleResources;
+      else {
+        this.log('resources found, go ahead', this.state.resources, 0, ['getVisibleResources']);
+        const visibleResources = this.state.resources.filter(resource => this.isResourceVisible(resource));
+        const maxRows = visibleResources.slice(0, this.state.options.maxRows);
+        this.state.options.rowsHeight = this.getTasksHeight(maxRows);
+        let heightCompensation = 0;
+        if (this.state.options.maxHeight && this.state.options.rowsHeight > this.state.options.maxHeight) {
+          heightCompensation = this.state.options.rowsHeight - this.state.options.maxHeight;
+          this.state.options.rowsHeight = this.state.options.maxHeight;
+        }
+        this.state.options.height = this.getHeight(maxRows) - heightCompensation;
+        this.state.options.allVisibleTasksHeight = this.getTasksHeight(visibleResources);
+        this.state.options.outerHeight = this.getHeight(maxRows, true) - heightCompensation;
+        return visibleResources;
+      }
     }
   },
 
@@ -1525,8 +1544,9 @@ const GanttElastic = {
         }
         task.height = this.state.options.row.height;
         task.x = this.timeToPixelOffsetX(task.startTime);
+        let resource = visibleResources[task.resourceId];
         task.y =
-          (this.state.options.row.height + this.state.options.chart.grid.horizontal.gap * 2) * visibleResources[task.resourceId].row +
+          (this.state.options.row.height + this.state.options.chart.grid.horizontal.gap * 2) * (typeof resource !== 'undefined' ? resource.row : index) +
           this.state.options.chart.grid.horizontal.gap;
       }
       visibleResources = null;

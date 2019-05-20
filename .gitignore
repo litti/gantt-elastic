@@ -1,3 +1,4 @@
 .vscode/
 .sonarlint/
 node_modules/
+src/components/Chart/Row/Debug.vue

@@ -55,10 +55,10 @@
             <g
               class="gantt-elastic__chart-row-wrapper"
               :style="{ ...root.style['chart-row-wrapper'] }"
-              v-for="resource in root.visibleResources"
-              :key="resource.id"
+              v-for="chartRowItem in getChartRows"
+              :key="chartRowItem.id"
             >
-              <template v-for="task in getResourceTasks(resource.id)">
+              <template v-for="task in getResourceTasks(chartRowItem, chartRowItem.id)">
                 <component :task="task" :is="task.type"></component>
               </template>
             </g>
@@ -77,6 +77,7 @@ import DependencyLines from './DependencyLines.vue';
 import Task from './Row/Task.vue';
 import Milestone from './Row/Milestone.vue';
 import Project from './Row/Project.vue';
+
 export default {
   name: 'Chart',
   components: {
@@ -105,8 +106,11 @@ export default {
     this.root.state.refs.chartGraphSvg = this.$refs.chartGraphSvg;
   },
   methods: {
-    getResourceTasks(resourceId) {
-      return this.root.visibleTasks.filter(task => task.resourceId === resourceId);
+    getResourceTasks(chartRowItem, chartRowItemId) {
+      if (this.root.visibleResources.length === 0)
+        return [chartRowItem];
+      else
+        return this.root.visibleTasks.filter(task => task.resourceId === chartRowItemId);
     }
   },
 
@@ -118,6 +122,13 @@ export default {
      */
     getViewBox() {
       return `0 0 ${this.root.state.options.width} ${this.root.state.options.allVisibleTasksHeight}`;
+    },
+
+    getChartRows() {
+      if (this.root.visibleResources.length === 0)
+        return this.root.visibleTasks;
+      else
+        return this.root.visibleResources;
     }
   }
 };

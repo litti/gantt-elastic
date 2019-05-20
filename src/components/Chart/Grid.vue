@@ -102,7 +102,7 @@ export default {
             y1: 0,
             x2: step.offset.px,
             y2:
-              state.resources.length * (state.options.row.height + state.options.chart.grid.horizontal.gap * 2) +
+              (typeof state.resources !== 'undefined' ? state.resources.length : state.tasks.length) * (state.options.row.height + state.options.chart.grid.horizontal.gap * 2) +
               this.root.style['grid-line-vertical']['stroke-width']
           });
         }
@@ -118,7 +118,7 @@ export default {
     horizontalLines() {
       let lines = [];
       const state = this.root.state.options;
-      let tasks = this.root.visibleResources;
+      let tasks = this.root.visibleResources.length > 0 ? this.root.visibleResources : this.root.visibleTasks;
       for (let index = 0, len = tasks.length; index <= len; index++) {
         const y =
           index * (state.row.height + state.chart.grid.horizontal.gap * 2) +
